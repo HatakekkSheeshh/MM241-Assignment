@@ -271,4 +271,9 @@ class Policy2210xxx(Policy):
         width = np.sum(np.any(stock != -2, axis=1))
         height = np.sum(np.any(stock != -2, axis=0))
         return width, height
+    def _can_place_(self, stock, position, size):
+        """Check if a product can be placed"""
+        x, y = position
+        w, h = size
+        return np.all(stock[x:x+w, y:y+h] == -1)
 
