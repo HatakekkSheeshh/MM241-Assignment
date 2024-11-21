@@ -266,4 +266,9 @@ class Policy2210xxx(Policy):
                     empty_area += 1
                     
         return empty_area - w*h
+    def _get_stock_size_(self, stock):
+        """Get the actual size of the stock"""
+        width = np.sum(np.any(stock != -2, axis=1))
+        height = np.sum(np.any(stock != -2, axis=0))
+        return width, height
 
