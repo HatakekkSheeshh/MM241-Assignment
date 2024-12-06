@@ -209,7 +209,7 @@ class Policy2210xxx(Policy):
         if not valid_products:
             return {"stock_idx": 0, "size": [0, 0], "position": (0, 0)}
         
-        # Sort products by area in descending order
+        # Sort products by area in descending order 
         valid_products.sort(key=lambda x: x[1]["size"][0] * x[1]["size"][1], reverse=True)
         
         # Find optimal stock for each product
@@ -217,40 +217,75 @@ class Policy2210xxx(Policy):
             prod_size = prod["size"]
             best_stock = None
             best_position = None
-            min_waste = float('inf')
+            best_size = None
+            min_waste_ratio = float('inf') 
             
-            # Iterate over stocks that are unused or partially used
+            # Calculate product area
+            prod_area = prod_size[0] * prod_size[1]
+            
+            # Find the most optimal stock for this product
+            stock_options = []
             for stock_idx, stock in enumerate(stocks):
                 stock_w, stock_h = self._get_stock_size_(stock)
-                prod_w, prod_h = prod_size
+                stock_area = stock_w * stock_h
                 
                 # Skip stocks that are too small
-                if stock_w < prod_w or stock_h < prod_h:
+                if stock_area < prod_area:
                     continue
                     
-                # Find optimal position in the current stock
-                for x in range(stock_w - prod_w + 1):
-                    for y in range(stock_h - prod_h + 1):
-                        if self._can_place_(stock, (x, y), prod_size):
-                            # Calculate space waste
-                            waste = self._calculate_waste(stock, (x, y), prod_size)
-                            if waste < min_waste:
-                                min_waste = waste
-                                best_stock = stock_idx
-                                best_position = (x, y)
+                # Add to consideration list
+                stock_options.append((stock_idx, stock, stock_area))
+            
+            # Sort stocks by area in ascending order
+            stock_options.sort(key=lambda x: x[2])
+            
+            # Iterate through stocks by area order
+            for stock_idx, stock, stock_area in stock_options:
+                stock_w, stock_h = self._get_stock_size_(stock)
                 
-                # Stop searching if a good position is found
-                if best_position is not None and min_waste < stock_w * stock_h * 0.1:  # Waste threshold 10%
-                    break
+                # Try both orientations (original and rotated)
+                orientations = [
+                    prod_size,                    # Original orientation
+                    [prod_size[1], prod_size[0]]  # Rotated orientation
+                ]
+                
+                for current_size in orientations:
+                    width, height = current_size
+                    if stock_w < width or stock_h < height:
+                        continue
                     
+                    # Find optimal position in this stock
+                    for x in range(stock_w - width + 1):
+                        for y in range(stock_h - height + 1):
+                            if self._can_place_(stock, (x, y), (width, height)):
+                                # Calculate waste ratio
+                                waste = self._calculate_waste(stock, (x, y), (width, height))
+                                waste_ratio = waste / stock_area
+                                
+                                # Update if better position found
+                                if waste_ratio < min_waste_ratio:
+                                    min_waste_ratio = waste_ratio
+                                    best_stock = stock_idx
+                                    best_position = (x, y)
+                                    best_size = current_size
+                    
+                    # Good waste ratio threshold (5%)
+                    if min_waste_ratio < 0.05:
+                        break
+                
+                # Found good position, no need to search further
+                if min_waste_ratio < 0.05:
+                    break
+            
             if best_position is not None:
                 return {
                     "stock_idx": best_stock,
-                    "size": prod_size,
+                    "size": best_size,
                     "position": best_position
                 }
         
         return {"stock_idx": 0, "size": [0, 0], "position": (0, 0)}
+        
     def _calculate_waste(self, stock, position, size):
         """Calculate the area of waste when placing a product"""
         x, y = position
