@@ -142,7 +142,7 @@ class Policy2210xxx(Policy):
         if len(self.rewards) == 0:
             return
             
-        # Tính returns
+        # Calculate returns and advantages
         returns = []
         R = 0
         for r in reversed(self.rewards):
